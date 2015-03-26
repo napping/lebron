@@ -61,7 +61,7 @@ class MERT:
             
             p[0] = self.line_search(ref, data, p[dim], directions[dim-1]) 
             new_score = self.evaluate(ref, data, p[0])
-            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + "\n using new weight vector \n" + str(p[0]) + ".\n")
+            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + "\n using new weight vector \n" + str(p[0]) + ".\n\n")
             if new_score >= prev:
                 break
 
