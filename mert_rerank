@@ -61,7 +61,7 @@ class MERT:
             
             p[0] = self.line_search(ref, data, p[dim], directions[dim-1]) 
             new_score = self.evaluate(ref, data, p[0])
-            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + ".\n\n")
+            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + "\n using new weight vector \n" + str(p[0]) + ".\n")
             if new_score >= prev:
                 break
 
@@ -125,6 +125,7 @@ class MERT:
         # intercepts.append(max(intercepts) + (2 * epsilon)) TODO 
         i_best = None
         min_i_score = float("inf")
+        best_weights = None
         for j, intercept in enumerate(intercepts):
             if j % 50 == 0:
                 sys.stderr.write(str(j) + " out of " + str(len(intercepts)) + " intercepts tested.\n")
@@ -133,12 +134,13 @@ class MERT:
             if val < min_i_score:
                 i_best = intercept
                 min_i_score = val
+                best_weights = weights
 
         assert (i_best is not None)
         
-        sys.stderr.write("Best intercept score: " + str(1.0 - min_i_score) + ".\n")
+        sys.stderr.write("Best intercept score: " + str(1.0 - min_i_score) + " with weight vector " + str(best_weights) + ".\n")
 
-        return vector_add(w, scalar_mult(i_best, d))
+        return best_weights
 
     def evaluate(self, ref, data, w):
         stats = [0 for i in xrange(10)]
@@ -169,8 +171,8 @@ if __name__ == '__main__':
     optparser.add_option("-r", "--reference", dest="reference", default="data/dev.ref", help="Target language reference sentences")
     optparser.add_option("-k", "--kbest-list", dest="input", default="data/dev+test.100best", help="100-best translation lists")
     optparser.add_option("-l", "--lm", dest="lm", default=-1.0, type="float", help="Language model weight")
-    optparser.add_option("-t", "--tm1", dest="tm1", default=-0.5, type="float", help="Translation model p(e|f) weight")
-    optparser.add_option("-s", "--tm2", dest="tm2", default=-0.5, type="float", help="Lexical translation model p_lex(f|e) weight")
+    optparser.add_option("-t", "--tm1", dest="tm1", default=-1.0, type="float", help="Translation model p(e|f) weight")
+    optparser.add_option("-s", "--tm2", dest="tm2", default=-1.0, type="float", help="Lexical translation model p_lex(f|e) weight")
     (opts, _) = optparser.parse_args()
 
     ref = [line.strip().split() for line in open(opts.reference)]
@@ -192,6 +194,8 @@ if __name__ == '__main__':
 
     w = (float(opts.lm), float(opts.tm1), float(opts.tm2))
     best_w = mert.run_mert_powell(ref, data, w)
+
+    sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
 
     for candidates in data:
         for (e, hyp, features) in candidates:
