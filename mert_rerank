@@ -61,9 +61,10 @@ class MERT:
             
             p[0] = self.line_search(ref, data, p[dim], directions[dim-1]) 
             new_score = self.evaluate(ref, data, p[0])
-            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + "\n using new weight vector \n" + str(p[0]) + ".\n\n")
             if new_score >= prev:
                 break
+
+            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + "\n using new weight vector \n" + str(p[0]) + ".\n\n")
 
             prev = new_score
 
@@ -110,7 +111,8 @@ class MERT:
                         best_np1 = hypo
                         min_np1_value = val
 
-                assert (best_np1 is not None)
+                if best_np1 is None:
+                    break
 
                 int_cand = (b[best_n] - b[best_np1]) / (m[best_np1] - m[best_n])
                 intercept = max(0.0, int_cand)
@@ -192,7 +194,7 @@ if __name__ == '__main__':
             candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 
-    w = (float(opts.lm), float(opts.tm1), float(opts.tm2))
+    w = (float(opts.tm1), float(opts.lm), float(opts.tm2))
     best_w = mert.run_mert_powell(ref, data, w)
 
     sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
