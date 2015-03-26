@@ -192,7 +192,7 @@ if __name__ == '__main__':
     optparser.add_option("-t", "--tm1", dest="tm1", default=-0.3, type="float", help="Translation model p(e|f) weight")
     optparser.add_option("-s", "--tm2", dest="tm2", default=-0.4, type="float", help="Lexical translation model p_lex(f|e) weight")
     optparser.add_option("-x", "--wordcount", dest="words", default=-0.5, type="float", help="Number of words.")
-    # optparser.add_option("-y", "--russiancount", dest="russian_words", default=-0.8, type="float", help="Number of 'foreign' words.")
+    optparser.add_option("-y", "--russiancount", dest="russian_words", default=-0.8, type="float", help="Number of 'foreign' words.")
     (opts, _) = optparser.parse_args()
 
     assert (opts.lm < 0.0 and opts.tm1 < 0.0 and opts.tm2 < 0.0)
@@ -219,7 +219,7 @@ if __name__ == '__main__':
                 word_count += 1
 
             features.append(word_count)
-            # features.append(russian_count)
+            features.append(russian_count)
             candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 

@@ -48,7 +48,7 @@ class MERT:
 
     # Based on Powell's Quadratically Convergent Method on page 511 of
     # Numerical Recipes 3rd Edition: The Art of Scientific Computing
-
+    """
     def run_mert_powell(self, ref, data, w, directions=[
         (1.0,0.0,0.0,0.0,0.0), 
         (0.0,1.0,0.0,0.0,0.0), 
@@ -56,7 +56,14 @@ class MERT:
         (0.0,0.0,0.0,1.0,0.0), 
         (0.0,0.0,0.0,0.0,1.0)
         ]):
-
+    """
+    def run_mert_powell(self, ref, data, w, directions=[
+        (1.0,0.0,0.0,0.0), 
+        (0.0,1.0,0.0,0.0), 
+        (0.0,0.0,1.0,0.0), 
+        (0.0,0.0,0.0,1.0)
+        ]):
+ 
         p = {0: w}
         dim = len(directions)
 
@@ -211,19 +218,13 @@ if __name__ == '__main__':
             for feat in feats.split(' '):
                 (k, v) = feat.split('=')
                 features.append(float(v))
-            word_count = 0
-            russian_count = 0
-            for word in hyp.split():
-                if not is_ascii(word):
-                    russian_count += 1
-                word_count += 1
 
-            features.append(word_count)
-            # features.append(russian_count)
+            features.append(len(hyp.split()))
             candidates.append((num, hyp, tuple(features)))
+
         data.append(candidates)
 
-    w = (float(opts.tm1), float(opts.lm), float(opts.tm2), float(opts.words), float(opts.russian_words))
+    w = (float(opts.tm1), float(opts.lm), float(opts.tm2), float(opts.words))
     best_w = mert.run_mert_powell(ref, data, w)
 
     sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
