@@ -38,13 +38,24 @@ def vector_sub(a, b):
     return tuple(c)
 
 
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
+
 class MERT:
     def __init__(self):
         self.initiated = True
 
     # Based on Powell's Quadratically Convergent Method on page 511 of
     # Numerical Recipes 3rd Edition: The Art of Scientific Computing
-    def run_mert_powell(self, ref, data, w, directions=[(1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,0.0,1.0)]):
+    def run_mert_powell(self, ref, data, w, directions=[
+        (1.0,0.0,0.0,0.0,0.0), 
+        (0.0,1.0,0.0,0.0,0.0), 
+        (0.0,0.0,1.0,0.0,0.0), 
+        (0.0,0.0,0.0,1.0,0.0), 
+        (0.0,0.0,0.0,0.0,1.0)
+        ]):
+
         p = {0: w}
         dim = len(directions)
 
@@ -150,6 +161,7 @@ class MERT:
         for j, candidates in enumerate(data):
             (best_score, best) = (-1e300, '')
             for (e, hypo, features) in candidates:
+                assert (len(features) == len(w))
                 score = 0.0
                 for k in xrange(len(features)):
                     score += w[k] * features[k]
@@ -172,10 +184,14 @@ if __name__ == '__main__':
     optparser = optparse.OptionParser()
     optparser.add_option("-r", "--reference", dest="reference", default="data/dev.ref", help="Target language reference sentences")
     optparser.add_option("-k", "--kbest-list", dest="input", default="data/dev+test.100best", help="100-best translation lists")
-    optparser.add_option("-l", "--lm", dest="lm", default=-1.0, type="float", help="Language model weight")
-    optparser.add_option("-t", "--tm1", dest="tm1", default=-1.0, type="float", help="Translation model p(e|f) weight")
-    optparser.add_option("-s", "--tm2", dest="tm2", default=-1.0, type="float", help="Lexical translation model p_lex(f|e) weight")
+    optparser.add_option("-l", "--lm", dest="lm", default=-0.5, type="float", help="Language model weight")
+    optparser.add_option("-t", "--tm1", dest="tm1", default=-0.3, type="float", help="Translation model p(e|f) weight")
+    optparser.add_option("-s", "--tm2", dest="tm2", default=-0.4, type="float", help="Lexical translation model p_lex(f|e) weight")
+    optparser.add_option("-x", "--wordcount", dest="words", default=-0.5, type="float", help="Number of words.")
+    optparser.add_option("-y", "--russiancount", dest="russian_words", default=-0.8, type="float", help="Number of 'foreign' words.")
     (opts, _) = optparser.parse_args()
+
+    assert (opts.lm < 0.0 and opts.tm1 < 0.0 and opts.tm2 < 0.0)
 
     ref = [line.strip().split() for line in open(opts.reference)]
     all_hyps = [pair.split(' ||| ') for pair in open(opts.input)]
@@ -191,11 +207,21 @@ if __name__ == '__main__':
             for feat in feats.split(' '):
                 (k, v) = feat.split('=')
                 features.append(float(v))
+            word_count = 0
+            russian_count = 0
+            for word in hyp.split():
+                if not is_ascii(word):
+                    russian_count += 1
+                word_count += 1
+
+            features.append(word_count)
+            features.append(russian_count)
             candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 
-    w = (float(opts.tm1), float(opts.lm), float(opts.tm2))
-    best_w = mert.run_mert_powell(ref, data, w)
+    w = (float(opts.tm1), float(opts.lm), float(opts.tm2), float(opts.words), float(opts.russian_words))
+    # best_w = mert.run_mert_powell(ref, data, w)
+    best_w = (1.0, 1.0, 1.0, 1.0, 1.0)
 
     sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
 
