@@ -13,26 +13,30 @@ def dot_prod(a, b):
 
 
 def scalar_mult(s, a):
-    assert (len(a) == len(b))
+    b = []
     for i in xrange(len(a)):
-        a[i] = a[i] * s
+        b.append(a[i] * s)
 
-    return a
+    return tuple(b)
 
 
 def vector_add(a, b):
     assert (len(a) == len(b))
+    c = []
     for i in xrange(len(a)):
-        a[i] = a[i] + b[i]
+        c.append(a[i] + b[i])
 
-    return a
+    return tuple(c)
+
 
 def vector_sub(a, b):
     assert (len(a) == len(b))
+    c = []
     for i in xrange(len(a)):
-        a[i] = a[i] - b[i]
+        c.append(a[i] - b[i])
 
-    return a
+    return tuple(c)
+
 
 class MERT:
     def __init__(self):
@@ -46,23 +50,27 @@ class MERT:
 
         prev = float('inf')
         while (True):
+            sys.stderr.write("Performing iteration of Powell's Method\n")
             for i, d in enumerate(directions):
-                p[i+1] = line_search(ref, data, p[i] , d)
+                p[i+1] = self.line_search(ref, data, p[i] , d)
 
-            for j in xrange(dim - 1)):
+            for j in xrange(dim - 1):
                 directions[j] = directions[j+1]
 
-            directions[dim-1] = p[dim] - p[0]
+            directions[dim-1] = vector_sub(p[dim], p[0])
             
-            p[0] = line_search(ref, data, p[dim], directions[dim-1]) 
+            p[0] = self.line_search(ref, data, p[dim], directions[dim-1]) 
             new_score = self.evaluate(ref, data, p[0])
+            sys.stderr.write("Finished one iteration of Powell's Method. \nImproved score from " + str(prev) + " to " + str(new_score) + ".\n\n")
             if new_score >= prev:
                 break
+
             prev = new_score
 
         return p[0]
 
     def line_search(self, ref, data, w, d):
+        sys.stderr.write("Performing line_search with direction " + str(d) + ".\n")
         assert (len(w) == len(d))
         epsilon = 0.0 # ???TODO
         m = {}
@@ -71,69 +79,88 @@ class MERT:
         for candidates in data:
             # Identifying the points e as their num, hopefully more efficient
             for (e, hypo, features) in candidates:
-                m[e] = dot_prod(features, d)
-                b[e] = dot_prod(features, w)
+                m[hypo] = dot_prod(features, d)
+                b[hypo] = dot_prod(features, w)
 
             best_n = None
             max_n_value = 0.0
-            for (e, hypo, features) in candidates:
-                if m[e] > max_n_value:
-                    best_n = e
-                    max_n_value = m[e]
-                elif m[e] == max_n_value:
+            for (num, hypo, features) in candidates:
+                if m[hypo] > max_n_value:
+                    best_n = hypo
+                    max_n_value = m[hypo]
+                elif m[hypo] == max_n_value:
                     # b[e] breaks ties
-                    if b[e] > b[best_n]:
-                        best_n = e
-                        max_n_value = m[e]
+                    if b[hypo] > b[best_n]:
+                        best_n = hypo
+                        max_n_value = m[hypo]
             assert (best_n is not None)
 
             while (True):
                 best_np1 = None
                 min_np1_value = float("inf")
                 # Looking for argmin this time
-                for (e, hypo, features) in candidates:
-                    i = (b[best_n] - b[e]) / (m[e] - m[best_n])
+                for (num, hypo, features) in candidates:
+                    denominator = m[hypo] - m[best_n]
+                    if denominator == 0:
+                        continue  # will raise a divide-by-zero error
+
+                    i = (b[best_n] - b[hypo]) / (denominator)
                     val = max(0.0, i)
                     if val < min_np1_value:
-                        best_np1 = e
+                        best_np1 = hypo
                         min_np1_value = val
+
                 assert (best_np1 is not None)
 
                 int_cand = (b[best_n] - b[best_np1]) / (m[best_np1] - m[best_n])
-                intercept = max(0.0, intercept)
+                intercept = max(0.0, int_cand)
                 if intercept > 0.0:
+                    if intercept in intercepts:
+                        break
                     intercepts.append(intercept)
+                    best_n = best_np1
                 else:
                     break
 
-        intercepts.append(max(intercepts) + 2(epsilon))
+        # intercepts.append(max(intercepts) + (2 * epsilon)) TODO 
         i_best = None
         min_i_score = float("inf")
-        for intercept in intercepts:
-            weights = vector_add(w, scalar_mult(i, d))
-            val = 1 - self.evalute(ref, data, weights, d)
+        for j, intercept in enumerate(intercepts):
+            if j % 50 == 0:
+                sys.stderr.write(str(j) + " out of " + str(len(intercepts)) + " intercepts tested.\n")
+            weights = vector_add(w, scalar_mult(intercept, d))
+            val = 1.0 - self.evaluate(ref, data, weights)
             if val < min_i_score:
                 i_best = intercept
                 min_i_score = val
 
         assert (i_best is not None)
+        
+        sys.stderr.write("Best intercept score: " + str(i_best) + ".\n")
 
         return vector_add(w, scalar_mult(i_best, d))
 
     def evaluate(self, ref, data, w):
         stats = [0 for i in xrange(10)]
+        best_picks = []
         for j, candidates in enumerate(data):
-            best = None
+            (best_score, best) = (-1e300, '')
             for (e, hypo, features) in candidates:
                 score = 0.0
                 for k in xrange(len(features)):
                     score += w[k] * features[k]
                 if score > best_score:
-                    (best_score, best) = (score, hyp)
+                    (best_score, best) = (score, hypo)
 
             assert (best is not None)
-            
-            stats = [sum(scores) for scores in zip(stats, bleu.bleu_stats(ref[j],best))]
+
+            best_picks.append(best)
+
+        best_picks_split = [line.strip().split() for line in best_picks]
+
+        for (r,h) in zip(ref, best_picks_split):
+            stats = [sum(scores) for scores in zip(stats, bleu.bleu_stats(h,r))]
+
         return bleu.bleu(stats)
 
 
@@ -162,7 +189,7 @@ if __name__ == '__main__':
             features = []
             for feat in feats.split(' '):
                 (k, v) = feat.split('=')
-                features.append(v)
+                features.append(float(v))
             candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 
@@ -170,7 +197,7 @@ if __name__ == '__main__':
     best_w = mert.run_mert_powell(ref, data, w)
 
     for candidates in data:
-        for (e, hypo, features) in candidates:
+        for (e, hyp, features) in candidates:
             score = 0.0
             for k in xrange(len(features)):
                 score += best_w[k] * features[k]
