@@ -199,13 +199,14 @@ if __name__ == '__main__':
     for candidates in data:
         for (e, hyp, features) in candidates:
             score = 0.0
+            (best_score, best) = (-1e300, '')
             for k in xrange(len(features)):
                 score += best_w[k] * features[k]
             if score > best_score:
                 (best_score, best) = (score, hyp)
 
-            try: 
-                sys.stdout.write("%s\n" % best)
-            except (Exception):
-                sys.exit(1)
+        try: 
+            sys.stdout.write("%s\n" % best)
+        except (Exception):
+            sys.exit(1)
 
