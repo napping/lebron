@@ -44,7 +44,7 @@ class MERT:
 
     # Based on Powell's Quadratically Convergent Method on page 511 of
     # Numerical Recipes 3rd Edition: The Art of Scientific Computing
-    def run_mert_powell(self, ref, data, w=(1.0, 1.0, 1.0), directions=[(1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,0.0,1.0)]):
+    def run_mert_powell(self, ref, data, w, directions=[(1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,0.0,1.0)]):
         p = {0: w}
         dim = len(directions)
 
@@ -136,7 +136,7 @@ class MERT:
 
         assert (i_best is not None)
         
-        sys.stderr.write("Best intercept score: " + str(i_best) + ".\n")
+        sys.stderr.write("Best intercept score: " + str(1.0 - min_i_score) + ".\n")
 
         return vector_add(w, scalar_mult(i_best, d))
 
@@ -172,9 +172,6 @@ if __name__ == '__main__':
     optparser.add_option("-t", "--tm1", dest="tm1", default=-0.5, type="float", help="Translation model p(e|f) weight")
     optparser.add_option("-s", "--tm2", dest="tm2", default=-0.5, type="float", help="Lexical translation model p_lex(f|e) weight")
     (opts, _) = optparser.parse_args()
-    init_weights = {'p(e)'       : float(opts.lm) ,
-                    'p(e|f)'     : float(opts.tm1),
-                    'p_lex(f|e)' : float(opts.tm2)}
 
     ref = [line.strip().split() for line in open(opts.reference)]
     all_hyps = [pair.split(' ||| ') for pair in open(opts.input)]

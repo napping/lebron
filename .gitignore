@@ -3,3 +3,4 @@
 *.swn
 moses/
 mert.c
+*.out
