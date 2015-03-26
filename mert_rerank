@@ -102,6 +102,8 @@ class MERT:
                     max_n_value = m[hypo]
                 elif m[hypo] == max_n_value:
                     # b[e] breaks ties
+                    if hypo not in b or best_n not in b:
+                        continue
                     if b[hypo] > b[best_n]:
                         best_n = hypo
                         max_n_value = m[hypo]
@@ -136,9 +138,12 @@ class MERT:
                     break
 
         # intercepts.append(max(intercepts) + (2 * epsilon)) TODO 
-        i_best = None
+        if len(intercepts) == 0:
+            intercepts.append(0.0)
+
+        i_best = intercepts[0]
         min_i_score = float("inf")
-        best_weights = None
+        best_weights = vector_add(w, scalar_mult(i_best, d))
         for j, intercept in enumerate(intercepts):
             if j % 50 == 0:
                 sys.stderr.write(str(j) + " out of " + str(len(intercepts)) + " intercepts tested.\n")
@@ -148,8 +153,6 @@ class MERT:
                 i_best = intercept
                 min_i_score = val
                 best_weights = weights
-
-        assert (i_best is not None)
         
         sys.stderr.write("Best intercept score: " + str(1.0 - min_i_score) + " with weight vector " + str(best_weights) + ".\n")
 
