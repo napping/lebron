@@ -220,8 +220,7 @@ if __name__ == '__main__':
         data.append(candidates)
 
     w = (float(opts.tm1), float(opts.lm), float(opts.tm2), float(opts.words), float(opts.russian_words))
-    # best_w = mert.run_mert_powell(ref, data, w)
-    best_w = (1.0, 1.0, 1.0, 1.0, 1.0)
+    best_w = mert.run_mert_powell(ref, data, w)
 
     sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
 
