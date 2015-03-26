@@ -6,7 +6,7 @@ import bleu
 def dot_prod(a, b):
     assert (len(a) == len(b))
     product = 0.0
-    for i in range(len(a)):
+    for i in xrange(len(a)):
         product += (a[i] * b[i])
 
     return product
@@ -14,7 +14,7 @@ def dot_prod(a, b):
 
 def scalar_mult(s, a):
     assert (len(a) == len(b))
-    for i in a:
+    for i in xrange(len(a)):
         a[i] = a[i] * s
 
     return a
@@ -22,22 +22,47 @@ def scalar_mult(s, a):
 
 def vector_add(a, b):
     assert (len(a) == len(b))
-    for i in a:
-        a[i] = a[i] * b[i]
+    for i in xrange(len(a)):
+        a[i] = a[i] + b[i]
+
+    return a
+
+def vector_sub(a, b):
+    assert (len(a) == len(b))
+    for i in xrange(len(a)):
+        a[i] = a[i] - b[i]
 
     return a
 
 class MERT:
-    def __init__(self, init_weights={}):
-        self.init_weights = init_weights
+    def __init__(self):
+        self.initiated = True
 
-    def run_mert(self, data):
-        # candidates := list of (num, hypo, feature 3-tuple) tuples
-        # TODO ???
-        dimensions = [(1,0,0), (0,1,0), (0,0,1)]    
-        pass
+    # Based on Powell's Quadratically Convergent Method on page 511 of
+    # Numerical Recipes 3rd Edition: The Art of Scientific Computing
+    def run_mert_powell(self, ref, data, w=(1.0, 1.0, 1.0), directions=[(1.0,0.0,0.0), (0.0,1.0,0.0), (0.0,0.0,1.0)]):
+        p = {0: w}
+        dim = len(directions)
 
-    def line_search(self, ref, data, w, d, loss):
+        prev = float('inf')
+        while (True):
+            for i, d in enumerate(directions):
+                p[i+1] = line_search(ref, data, p[i] , d)
+
+            for j in xrange(dim - 1)):
+                directions[j] = directions[j+1]
+
+            directions[dim-1] = p[dim] - p[0]
+            
+            p[0] = line_search(ref, data, p[dim], directions[dim-1]) 
+            new_score = self.evaluate(ref, data, p[0])
+            if new_score >= prev:
+                break
+            prev = new_score
+
+        return p[0]
+
+    def line_search(self, ref, data, w, d):
         assert (len(w) == len(d))
         epsilon = 0.0 # ???TODO
         m = {}
@@ -73,6 +98,7 @@ class MERT:
                         best_np1 = e
                         min_np1_value = val
                 assert (best_np1 is not None)
+
                 int_cand = (b[best_n] - b[best_np1]) / (m[best_np1] - m[best_n])
                 intercept = max(0.0, intercept)
                 if intercept > 0.0:
@@ -84,7 +110,8 @@ class MERT:
         i_best = None
         min_i_score = float("inf")
         for intercept in intercepts:
-            val = 1 - self.evalute_intercept(ref, data, intercept, w, d)
+            weights = vector_add(w, scalar_mult(i, d))
+            val = 1 - self.evalute(ref, data, weights, d)
             if val < min_i_score:
                 i_best = intercept
                 min_i_score = val
@@ -93,15 +120,14 @@ class MERT:
 
         return vector_add(w, scalar_mult(i_best, d))
 
-    def evaluate_intercept(ref, data, i, w, d):
-        weights = vector_add(w, scalar_mult(i, d))
+    def evaluate(self, ref, data, w):
         stats = [0 for i in xrange(10)]
         for j, candidates in enumerate(data):
             best = None
             for (e, hypo, features) in candidates:
                 score = 0.0
-                for k in features:
-                    score += weights[k] * features[k]
+                for k in xrange(len(features)):
+                    score += w[k] * features[k]
                 if score > best_score:
                     (best_score, best) = (score, hyp)
 
@@ -126,7 +152,7 @@ if __name__ == '__main__':
     ref = [line.strip().split() for line in open(opts.reference)]
     all_hyps = [pair.split(' ||| ') for pair in open(opts.input)]
     num_sents = len(all_hyps) / 100
-    mert = MERT(init_weights)   # M.E.R.T. engine
+    mert = MERT()   # M.E.R.T. engine
     
     data = []
     for s in xrange(0, num_sents):
@@ -140,11 +166,19 @@ if __name__ == '__main__':
             candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 
-    try: 
-        sys.stdout.write("%s\n" % best_hypo)
-    except (Exception):
-        sys.exit(1)
- 
+    w = (float(opts.lm), float(opts.tm1), float(opts.tm2))
+    best_w = mert.run_mert_powell(ref, data, w)
 
+    for candidates in data:
+        for (e, hypo, features) in candidates:
+            score = 0.0
+            for k in xrange(len(features)):
+                score += best_w[k] * features[k]
+            if score > best_score:
+                (best_score, best) = (score, hyp)
 
+            try: 
+                sys.stdout.write("%s\n" % best)
+            except (Exception):
+                sys.exit(1)
 
