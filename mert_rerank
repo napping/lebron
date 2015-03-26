@@ -1,41 +1,119 @@
 #!/usr/bin/env python
 import optparse
 import sys
+import bleu
+
+def dot_prod(a, b):
+    assert (len(a) == len(b))
+    product = 0.0
+    for i in range(len(a)):
+        product += (a[i] * b[i])
+
+    return product
+
+
+def scalar_mult(s, a):
+    assert (len(a) == len(b))
+    for i in a:
+        a[i] = a[i] * s
+
+    return a
+
+
+def vector_add(a, b):
+    assert (len(a) == len(b))
+    for i in a:
+        a[i] = a[i] * b[i]
+
+    return a
 
 class MERT:
     def __init__(self, init_weights={}):
         self.init_weights = init_weights
 
     def run_mert(self, data):
-        # candidates := list of (num, hypo, feature dictionary) tuples
+        # candidates := list of (num, hypo, feature 3-tuple) tuples
         # TODO ???
         dimensions = [(1,0,0), (0,1,0), (0,0,1)]    
         pass
 
-    def line_search(self, data, w, d, loss):
+    def line_search(self, ref, data, w, d, loss):
+        assert (len(w) == len(d))
+        epsilon = 0.0 # ???TODO
+        m = {}
+        b = {}
+        intercepts = []
         for candidates in data:
-            for (num, hypo, features) in candidates:
-                pass
+            # Identifying the points e as their num, hopefully more efficient
+            for (e, hypo, features) in candidates:
+                m[e] = dot_prod(features, d)
+                b[e] = dot_prod(features, w)
 
+            best_n = None
+            max_n_value = 0.0
+            for (e, hypo, features) in candidates:
+                if m[e] > max_n_value:
+                    best_n = e
+                    max_n_value = m[e]
+                elif m[e] == max_n_value:
+                    # b[e] breaks ties
+                    if b[e] > b[best_n]:
+                        best_n = e
+                        max_n_value = m[e]
+            assert (best_n is not None)
 
-class Point:
-    def __init__(self, hypo, weights, score):
-        self.hypo = hypo
-        self.weights = weights
-        self.score = score
+            while (True):
+                best_np1 = None
+                min_np1_value = float("inf")
+                # Looking for argmin this time
+                for (e, hypo, features) in candidates:
+                    i = (b[best_n] - b[e]) / (m[e] - m[best_n])
+                    val = max(0.0, i)
+                    if val < min_np1_value:
+                        best_np1 = e
+                        min_np1_value = val
+                assert (best_np1 is not None)
+                int_cand = (b[best_n] - b[best_np1]) / (m[best_np1] - m[best_n])
+                intercept = max(0.0, intercept)
+                if intercept > 0.0:
+                    intercepts.append(intercept)
+                else:
+                    break
+
+        intercepts.append(max(intercepts) + 2(epsilon))
+        i_best = None
+        min_i_score = float("inf")
+        for intercept in intercepts:
+            val = 1 - self.evalute_intercept(ref, data, intercept, w, d)
+            if val < min_i_score:
+                i_best = intercept
+                min_i_score = val
+
+        assert (i_best is not None)
+
+        return vector_add(w, scalar_mult(i_best, d))
+
+    def evaluate_intercept(ref, data, i, w, d):
+        weights = vector_add(w, scalar_mult(i, d))
+        stats = [0 for i in xrange(10)]
+        for j, candidates in enumerate(data):
+            best = None
+            for (e, hypo, features) in candidates:
+                score = 0.0
+                for k in features:
+                    score += weights[k] * features[k]
+                if score > best_score:
+                    (best_score, best) = (score, hyp)
+
+            assert (best is not None)
             
-    def score(self):
-        return self.score
-
-    def weights(self):
-        return self.weights
-
-    def hypothesis(self):
-        return self.hypothesis
+            stats = [sum(scores) for scores in zip(stats, bleu.bleu_stats(ref[j],best))]
+        return bleu.bleu(stats)
 
 
 if __name__ == '__main__':
     optparser = optparse.OptionParser()
+    optparser.add_option("-r", "--reference", dest="reference", default="data/dev.ref", help="Target language reference sentences")
     optparser.add_option("-k", "--kbest-list", dest="input", default="data/dev+test.100best", help="100-best translation lists")
     optparser.add_option("-l", "--lm", dest="lm", default=-1.0, type="float", help="Language model weight")
     optparser.add_option("-t", "--tm1", dest="tm1", default=-0.5, type="float", help="Translation model p(e|f) weight")
@@ -45,6 +123,7 @@ if __name__ == '__main__':
                     'p(e|f)'     : float(opts.tm1),
                     'p_lex(f|e)' : float(opts.tm2)}
 
+    ref = [line.strip().split() for line in open(opts.reference)]
     all_hyps = [pair.split(' ||| ') for pair in open(opts.input)]
     num_sents = len(all_hyps) / 100
     mert = MERT(init_weights)   # M.E.R.T. engine
@@ -54,11 +133,11 @@ if __name__ == '__main__':
         hyps_for_one_sent = all_hyps[s * 100:s * 100 + 100]
         candidates = []
         for (num, hyp, feats) in hyps_for_one_sent:
-            features = {}
+            features = []
             for feat in feats.split(' '):
                 (k, v) = feat.split('=')
-                features[k] = v
-            candidates.append((num, hyp, features))
+                features.append(v)
+            candidates.append((num, hyp, tuple(features)))
         data.append(candidates)
 
     try: 
