@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+
+import optparse
+import sys
+import bleu
+from random import random
+
+optparser = optparse.OptionParser()
+optparser.add_option("-r", "--reference", dest="reference", default="data/dev.ref", help="Target language reference sentences")
+optparser.add_option("-k", "--kbest-list", dest="input", default="data/dev+test.100best", help="100-best translation lists")
+
+(opts,_) = optparser.parse_args()
+
+ref = [line.strip().split() for line in open(opts.reference)]
+
+all_hyps = [pair.split(' ||| ') for pair in open(opts.input)]
+num_sents = len(all_hyps) / 100
+
+while (True):
+    weights = (-1.0 * random(), -1.0 * random(), -1.0 * random())
+    
+    selections = []
+    for s in xrange(0, num_sents):
+        hyps_for_one_sent = all_hyps[s * 100:s * 100 + 100]
+        (best_score, best) = (-1e300, '')
+        for (num, hyp, feats) in hyps_for_one_sent:
+            score = 0.0
+            for i, feat in enumerate(feats.split(' ')):
+                (k, v) = feat.split('=')
+                score += weights[i] * float(v)
+            if score > best_score:
+                (best_score, best) = (score, hyp)
+
+        selections.append(best)
+
+    stats = [0 for i in xrange(10)]
+    for (r,h) in zip(ref, selections):
+        stats = [sum(scores) for scores in zip(stats, bleu.bleu_stats(h.split(),r))]
+
+    score = bleu.bleu(stats)
+    if score > 0.280:
+        print weights
+        print score
+        print "\n"
+
