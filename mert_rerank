@@ -50,11 +50,9 @@ class MERT:
     # Numerical Recipes 3rd Edition: The Art of Scientific Computing
 
     def run_mert_powell(self, ref, data, w, directions=[
-        (1.0,0.0,0.0,0.0,0.0), 
-        (0.0,1.0,0.0,0.0,0.0), 
-        (0.0,0.0,1.0,0.0,0.0), 
-        (0.0,0.0,0.0,1.0,0.0), 
-        (0.0,0.0,0.0,0.0,1.0)
+        (1.0,0.0,0.0), 
+        (0.0,1.0,0.0), 
+        (0.0,0.0,1.0), 
         ]):
 
         p = {0: w}
@@ -191,8 +189,6 @@ if __name__ == '__main__':
     optparser.add_option("-l", "--lm", dest="lm", default=-0.5, type="float", help="Language model weight")
     optparser.add_option("-t", "--tm1", dest="tm1", default=-0.3, type="float", help="Translation model p(e|f) weight")
     optparser.add_option("-s", "--tm2", dest="tm2", default=-0.4, type="float", help="Lexical translation model p_lex(f|e) weight")
-    optparser.add_option("-x", "--wordcount", dest="words", default=-0.5, type="float", help="Number of words.")
-    # optparser.add_option("-y", "--russiancount", dest="russian_words", default=-0.8, type="float", help="Number of 'foreign' words.")
     (opts, _) = optparser.parse_args()
 
     assert (opts.lm < 0.0 and opts.tm1 < 0.0 and opts.tm2 < 0.0)
@@ -211,19 +207,12 @@ if __name__ == '__main__':
             for feat in feats.split(' '):
                 (k, v) = feat.split('=')
                 features.append(float(v))
-            word_count = 0
-            russian_count = 0
-            for word in hyp.split():
-                if not is_ascii(word):
-                    russian_count += 1
-                word_count += 1
 
-            features.append(word_count)
-            # features.append(russian_count)
             candidates.append((num, hyp, tuple(features)))
+
         data.append(candidates)
 
-    w = (float(opts.tm1), float(opts.lm), float(opts.tm2), float(opts.words), float(opts.russian_words))
+    w = (float(opts.tm1), float(opts.lm), float(opts.tm2))
     best_w = mert.run_mert_powell(ref, data, w)
 
     sys.stderr.write("Best weight vector: " + str(best_w) + ".\n\n")
